@@ -1,5 +1,5 @@
 {
-    "version": "3.26.0",
+    "version": "3.26.1",
     "last_update": "2026-03-03",
-    "description": "记忆系统优化"
+    "description": "记忆系统优化；修复自动更新检查"
 }
