@@ -1115,7 +1115,12 @@ def call_chat_api_with_retry(messages_to_send, user_id, max_retries=2, is_summar
                     content = message_content.strip()
                     if content and "[image]" not in content and content != "ext":
                         if ENABLE_MEMORY and not is_summary:
-                            log_ai_reply_to_memory(user_id, content)  # 记录原始输出（含CoT）供调试
+                            # 尝试捕获原生 thinking/reasoning 字段（Gemini、DeepSeek R1 等推理模型）
+                            reasoning = getattr(response.choices[0].message, 'reasoning_content', None)
+                            log_content = content
+                            if reasoning:
+                                log_content = f"<thinking>\n{reasoning}\n</thinking>\n{content}"
+                            log_ai_reply_to_memory(user_id, log_content)
                         filtered_content = strip_before_thought_tags(content)
                         if filtered_content:
                             return filtered_content
@@ -1238,7 +1243,11 @@ def call_assistant_api_with_retry(messages_to_send, user_id, max_retries=2, is_s
                     content = message_content.strip()
                     if content and "[image]" not in content:
                         if ENABLE_MEMORY and not is_summary:
-                            log_ai_reply_to_memory(user_id, content)  # 记录原始输出（含CoT）供调试
+                            reasoning = getattr(response.choices[0].message, 'reasoning_content', None)
+                            log_content = content
+                            if reasoning:
+                                log_content = f"<thinking>\n{reasoning}\n</thinking>\n{content}"
+                            log_ai_reply_to_memory(user_id, log_content)
                         filtered_content = strip_before_thought_tags(content)
                         if filtered_content:
                             return filtered_content

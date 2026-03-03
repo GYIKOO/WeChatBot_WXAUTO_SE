@@ -1,5 +1,5 @@
 {
-    "version": "3.26.1",
+    "version": "3.26.2",
     "last_update": "2026-03-03",
-    "description": "记忆系统优化；修复自动更新检查"
+    "description": "记忆系统优化；修复自动更新检查；增强CoT日志捕获兼容性"
 }
