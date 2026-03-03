@@ -1071,13 +1071,20 @@ def call_chat_api_with_retry(messages_to_send, user_id, max_retries=2, is_summar
         try:
             logger.debug(f"发送给 API 的消息 (ID: {user_id}): {messages_to_send}")
 
-            response = client.chat.completions.create(
+            # 构建API请求参数
+            api_params = dict(
                 model=MODEL,
                 messages=messages_to_send,
                 temperature=TEMPERATURE,
+                top_p=TOP_P,
                 max_tokens=MAX_TOKEN,
                 stream=False
             )
+            # Gemini的OpenAI兼容端点不支持penalty参数，仅非Gemini模型时传入
+            if 'generativelanguage.googleapis.com' not in DEEPSEEK_BASE_URL:
+                api_params['presence_penalty'] = PRESENCE_PENALTY
+                api_params['frequency_penalty'] = FREQUENCY_PENALTY
+            response = client.chat.completions.create(**api_params)
 
             if response.choices:
                 # 检查API是否返回了空的消息内容

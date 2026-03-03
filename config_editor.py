@@ -370,7 +370,8 @@ def validate_config_types(config_path):
                      'GROUP_CHAT_RESPONSE_PROBABILITY', 'ASSISTANT_MAX_TOKEN']
         
         # 检查应该是浮点数但被保存为字符串的配置项  
-        float_fields = ['TEMPERATURE', 'MOONSHOT_TEMPERATURE', 'MIN_COUNTDOWN_HOURS', 'MAX_COUNTDOWN_HOURS',
+        float_fields = ['TEMPERATURE', 'TOP_P', 'PRESENCE_PENALTY', 'FREQUENCY_PENALTY',
+                       'MOONSHOT_TEMPERATURE', 'MIN_COUNTDOWN_HOURS', 'MAX_COUNTDOWN_HOURS',
                        'AVERAGE_TYPING_SPEED', 'RANDOM_TYPING_SPEED_MIN', 'RANDOM_TYPING_SPEED_MAX',
                        'ONLINE_API_TEMPERATURE', 'RESTART_INTERVAL_HOURS', 'ASSISTANT_TEMPERATURE']
         
@@ -485,7 +486,7 @@ def get_chat_context_users():
         return []
 
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("10 per minute")  # 速率限制：每分钟最多10次登录尝试
+@limiter.limit("10 per minute", methods=['POST'])  # 仅对POST限制，避免重定向触发429
 def login():
     config = parse_config()
     client_ip = request.remote_addr

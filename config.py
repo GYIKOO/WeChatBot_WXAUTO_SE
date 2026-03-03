@@ -32,6 +32,10 @@ MAX_GROUPS = 5
 MAX_TOKEN = 2000
 # DeepSeek温度
 TEMPERATURE = 1.1
+# 采样参数（降低LLM八股感/重复度）
+TOP_P = 0.85
+PRESENCE_PENALTY = 0.4
+FREQUENCY_PENALTY = 0.4
 
 # Moonshot AI配置（用于图片和表情包识别）
 # API申请https://platform.moonshot.cn/

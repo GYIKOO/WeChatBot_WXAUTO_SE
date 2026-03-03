@@ -106,6 +106,203 @@
             margin-left: 10px;
         }
 
+        /* 问号图标样式 - 透明设计 */
+        .help-bell {
+            position: relative;
+            background: transparent;
+            border: 2px solid transparent;
+            font-size: 26px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 6px 12px;
+            color: #667eea;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-left: 10px;
+            border-radius: 50%;
+            line-height: 1;
+        }
+        .help-bell:hover {
+            color: #5568d3;
+            background: rgba(102, 126, 234, 0.1);
+            border-color: rgba(102, 126, 234, 0.3);
+            transform: scale(1.15);
+            animation: questionBounce 0.6s ease-in-out;
+        }
+        .help-bell:active {
+            transform: scale(0.95);
+        }
+        @keyframes questionBounce {
+            0%, 100% { transform: scale(1.15) translateY(0); }
+            25% { transform: scale(1.2) translateY(-5px); }
+            50% { transform: scale(1.18) translateY(0); }
+            75% { transform: scale(1.16) translateY(-3px); }
+        }
+        .help-bell .badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: #f44336;
+            color: white;
+            border-radius: 50%;
+            width: 10px;
+            height: 10px;
+            box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.3);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+                box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.3);
+            }
+            50% {
+                opacity: 0.8;
+                transform: scale(1.2);
+                box-shadow: 0 0 0 4px rgba(244, 67, 54, 0.1);
+            }
+        }
+
+        /* 常见问题弹窗样式 - 从问号图标展开效果 */
+        .faq-modal {
+            display: none;
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            width: 400px;
+            max-width: 90vw;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            z-index: 2000;
+            transform-origin: top right;
+            opacity: 0;
+            transform: scale(0) translate(380px, -60px);
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        .faq-modal.show {
+            display: block;
+            animation: expandFromIcon 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+        }
+        .faq-modal.hiding {
+            animation: shrinkToIcon 0.4s cubic-bezier(0.6, -0.28, 0.735, 0.045) forwards;
+        }
+        @keyframes expandFromIcon {
+            0% {
+                opacity: 0;
+                transform: scale(0) translate(380px, -60px) rotate(15deg);
+            }
+            50% {
+                transform: scale(0.5) translate(190px, -30px) rotate(5deg);
+            }
+            80% {
+                transform: scale(1.05) translate(0, 0) rotate(-2deg);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translate(0, 0) rotate(0deg);
+            }
+        }
+        @keyframes shrinkToIcon {
+            0% {
+                opacity: 1;
+                transform: scale(1) translate(0, 0) rotate(0deg);
+            }
+            20% {
+                transform: scale(0.95) translate(20px, -5px) rotate(2deg);
+            }
+            60% {
+                transform: scale(0.4) translate(200px, -35px) rotate(-10deg);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0) translate(380px, -60px) rotate(-20deg);
+            }
+        }
+        .faq-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .faq-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: white;
+        }
+        .faq-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+        .faq-close:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        .faq-content {
+            padding: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .faq-item {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .faq-item:hover {
+            background: #e9ecef;
+            transform: translateX(4px);
+        }
+        .faq-item-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .faq-item-content {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .faq-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .faq-link:hover {
+            text-decoration: underline;
+        }
+        .faq-footer {
+            padding: 16px 20px;
+            background: #f8f9fa;
+            border-radius: 0 0 12px 12px;
+            border-top: 1px solid #e9ecef;
+            text-align: center;
+        }
+        .faq-footer p {
+            margin: 0;
+            color: #666;
+            font-size: 13px;
+        }
+        .faq-footer strong {
+            color: #667eea;
+            font-size: 14px;
+        }
+
         #mobileMenuToggle {
             display: none; 
             position: fixed;
@@ -3655,7 +3852,39 @@
 <body>
     <div id="backend-closed-alert" class="backend-closed-alert">后台已关闭，请重新启动</div>
     <div id="config-alert" class="success-alert" style="display:none;"></div>
-    
+
+    <!-- 常见问题弹窗 -->
+    <div id="faqModal" class="faq-modal">
+        <div class="faq-header">
+            <h3> 常见问题 & 解决方案</h3>
+            <button class="faq-close" onclick="closeFaqModalButton()">×</button>
+        </div>
+        <div class="faq-content">
+            <div class="faq-item">
+                <div class="faq-item-title">❌ 微信登录不上，提示版本太低怎么办？</div>
+                <div class="faq-item-content">
+                    <strong>解决方案：</strong>需要下载2个版本微信，先登录一次新版，再退出，登录旧版<br>
+                    <a href="https://s.apifox.cn/2e75fa29-1b5e-4e5c-b604-c89e95a6555d/7534473m0" class="faq-link" target="_blank">📖 查看详细教程</a>
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-item-title">🚫 显示有敏感词怎么办？</div>
+                <div class="faq-item-content">
+                    <strong>解决步骤：</strong>
+                    <ol style="margin: 8px 0 0 0; padding-left: 20px; line-height: 1.8;">
+                        <li>给AI发送 <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">/清除临时记忆</code> 或 <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">/cl</code></li>
+                        <li>AI回复"已清除当前聊天的临时上下文与临时记忆日志。"</li>
+                        <li>在临时记忆配置开启<strong>自动清理敏感词</strong></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        <div class="faq-footer">
+            <p>🤔 以上方案无法解决您的问题？</p>
+            <p><strong>加入交流群：1031636957</strong></p>
+        </div>
+    </div>
+
     <button id="mobileMenuToggle">☰</button> 
 
     <div class="header-bar">
@@ -3668,6 +3897,7 @@
             <a href="https://ciu4ws3raf1.feishu.cn/docx/EgE7d5JvtopzmIxYZMKcLU2xnge?from=from_copylink"
                class="nav-button" target="_blank" style="background-color: #03A9F4;">帮助文档</a>
            <button id="oneKeyDiagnosticButton" class="nav-button" style="background-color:#f44336;">报错一键检测</button>
+           <button id="helpBellButton" class="help-bell" title="常见问题">❓<span class="badge"></span></button>
 <script>
 document.getElementById('oneKeyDiagnosticButton').addEventListener('click', async function() {
     try {
@@ -5141,6 +5371,63 @@ document.getElementById('oneKeyDiagnosticButton').addEventListener('click', asyn
                 alert(`保存NPC设置失败: ${error.message}`);
             }
         }
+
+        // ===== 常见问题弹窗逻辑 =====
+        let faqAutoCloseTimer = null;
+        let faqIsAnimating = false;
+
+        function showFaqModal() {
+            if (faqIsAnimating) return;
+            const modal = document.getElementById('faqModal');
+            faqIsAnimating = true;
+            modal.classList.remove('hiding');
+            modal.style.display = 'block';
+            modal.offsetHeight; // 强制重排以确保动画触发
+            modal.classList.add('show');
+            setTimeout(() => { faqIsAnimating = false; }, 500);
+            if (faqAutoCloseTimer) clearTimeout(faqAutoCloseTimer);
+            faqAutoCloseTimer = setTimeout(() => { closeFaqModal(); }, 10000);
+        }
+
+        function closeFaqModal() {
+            if (faqIsAnimating) return;
+            const modal = document.getElementById('faqModal');
+            faqIsAnimating = true;
+            modal.classList.remove('show');
+            modal.classList.add('hiding');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                modal.classList.remove('hiding');
+                faqIsAnimating = false;
+            }, 400);
+            const badge = document.querySelector('.help-bell .badge');
+            if (badge) badge.style.display = 'none';
+            if (faqAutoCloseTimer) { clearTimeout(faqAutoCloseTimer); faqAutoCloseTimer = null; }
+        }
+
+        function closeFaqModalButton() { closeFaqModal(); }
+
+        document.getElementById('helpBellButton').addEventListener('click', function(e) {
+            e.stopPropagation();
+            const modal = document.getElementById('faqModal');
+            if (modal.classList.contains('show')) { closeFaqModal(); } else { showFaqModal(); }
+        });
+
+        // 页面加载后1秒自动弹出，10秒自动关闭
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => { showFaqModal(); }, 1000);
+        });
+
+        // 点击弹窗外部关闭
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('faqModal');
+            const bellButton = document.getElementById('helpBellButton');
+            if (modal.classList.contains('show') &&
+                !modal.contains(e.target) &&
+                !bellButton.contains(e.target)) {
+                closeFaqModal();
+            }
+        });
 
     </script>
 
