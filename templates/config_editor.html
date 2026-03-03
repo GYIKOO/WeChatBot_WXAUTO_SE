@@ -4485,7 +4485,7 @@ document.getElementById('oneKeyDiagnosticButton').addEventListener('click', asyn
                     <div class="form-group">
                         <label>触发聊天记录总结进记忆的阈值数量 (条):</label>
                         <input type="number" step="1" name="MAX_MESSAGE_LOG_ENTRIES" value="{{ config.MAX_MESSAGE_LOG_ENTRIES }}">
-                        <small>当聊天记录达到此数量时，系统会自动将聊天记录总结为记忆片段。</small>
+                        <small>自上次总结后，新增消息累计达到此数量时，自动触发记忆总结。实际触发阈值为 min(此值, 短期记忆轮数×2)，即不会超过短期记忆保留上限——超出部分会被自动截断，以确保总结时上下文内容仍在窗口内。建议设置为小于等于短期记忆轮数×2的值。</small>
                     </div>
                     <div class="form-group">
                         <label>储存在记忆中的记忆片段的最大数量 (条):</label>

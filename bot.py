@@ -887,6 +887,23 @@ def load_chat_contexts():
         logger.error(f"加载聊天上下文失败: {e}", exc_info=True)
         chat_contexts = {} # 出现其他错误也重置为空，保证程序能启动
 
+def migrate_chat_contexts_summarized_field():
+    """兼容性迁移：为旧版本 chat_contexts 中缺少 summarized 字段的条目补充默认值 False。
+
+    仅在启动时调用一次。旧数据默认设为未总结，确保不漏掉任何历史内容。
+    """
+    global chat_contexts
+    migrated_count = 0
+    with queue_lock:
+        for user_id, entries in chat_contexts.items():
+            for entry in entries:
+                if 'summarized' not in entry:
+                    entry['summarized'] = False
+                    migrated_count += 1
+        if migrated_count > 0:
+            save_chat_contexts()
+            logger.info(f"已迁移 {migrated_count} 条旧版本 chat_contexts 记录，补充 summarized 字段。")
+
 def merge_context(context_list):
     """
     合并连续相同 role 的消息，保证 user/assistant 交替。
@@ -976,19 +993,19 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
                 if len(history) > context_limit:
                     history = history[-context_limit:]  # 保留最近的消息
 
-                # 将历史消息添加到 API 请求列表中
-                messages_to_send.extend(history)
+                # 将历史消息添加到 API 请求列表中（去除 summarized 字段）
+                messages_to_send.extend({"role": e["role"], "content": e["content"]} for e in history)
 
                 # 3. 将当前用户消息添加到 API 请求列表中
                 messages_to_send.append({"role": "user", "content": message})
 
                 # 4. 在准备 API 调用后更新持久上下文
                 # 将用户消息添加到持久存储中
-                chat_contexts[user_id].append({"role": "user", "content": message})
+                chat_contexts[user_id].append({"role": "user", "content": message, "summarized": False})
                 # 如果需要，裁剪持久存储（在助手回复后会再次裁剪）
                 if len(chat_contexts[user_id]) > context_limit + 1:  # +1 因为刚刚添加了用户消息
                     chat_contexts[user_id] = chat_contexts[user_id][-(context_limit + 1):]
-                
+
                 # 保存上下文到文件
                 save_chat_contexts() # 在用户消息添加后保存一次
 
@@ -1006,11 +1023,11 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
                 if user_id not in chat_contexts:
                    chat_contexts[user_id] = []  # 安全初始化 (理论上此时应已存在)
 
-                chat_contexts[user_id].append({"role": "assistant", "content": reply})
+                chat_contexts[user_id].append({"role": "assistant", "content": reply, "summarized": False})
 
                 if len(chat_contexts[user_id]) > context_limit:
                     chat_contexts[user_id] = chat_contexts[user_id][-context_limit:]
-                
+
                 # 保存上下文到文件
                 save_chat_contexts() # 在助手回复添加后再次保存
         
@@ -1097,6 +1114,8 @@ def call_chat_api_with_retry(messages_to_send, user_id, max_retries=2, is_summar
                 else:
                     content = message_content.strip()
                     if content and "[image]" not in content and content != "ext":
+                        if ENABLE_MEMORY and not is_summary:
+                            log_ai_reply_to_memory(user_id, content)  # 记录原始输出（含CoT）供调试
                         filtered_content = strip_before_thought_tags(content)
                         if filtered_content:
                             return filtered_content
@@ -1218,6 +1237,8 @@ def call_assistant_api_with_retry(messages_to_send, user_id, max_retries=2, is_s
                 else:
                     content = message_content.strip()
                     if content and "[image]" not in content:
+                        if ENABLE_MEMORY and not is_summary:
+                            log_ai_reply_to_memory(user_id, content)  # 记录原始输出（含CoT）供调试
                         filtered_content = strip_before_thought_tags(content)
                         if filtered_content:
                             return filtered_content
@@ -2406,8 +2427,7 @@ def send_reply(user_id, sender_name, username, original_merged_message, reply, i
                     try:
                         if wx.SendMsg(msg=content, who=user_id):
                             logger.info(f"分段回复 {idx+1}/{len(message_actions)} 给 {sender_name}: {content[:50]}...")
-                            if ENABLE_MEMORY and not is_system_message:
-                                log_ai_reply_to_memory(username, content)
+                            # （AI回复已在 call_chat_api_with_retry 中记录至日志，此处不重复）
                             success = True
                             break
                         else:
@@ -2934,70 +2954,39 @@ def summarize_and_save(user_id, skip_check=False):
         user_id: 用户ID
         skip_check: 是否跳过记忆条目数量检查，用于手动触发的总结命令
     """
-    log_file = None
     temp_file = None
     backup_file = None
     try:
         # --- 前置检查 ---
         prompt_name = prompt_mapping.get(user_id, user_id)  # 获取配置的prompt名
-        safe_user_id = sanitize_user_id_for_filename(user_id)
-        safe_prompt_name = sanitize_user_id_for_filename(prompt_name)
-        log_file = os.path.join(root_dir, MEMORY_TEMP_DIR, f'{safe_user_id}_{safe_prompt_name}_log.txt')
-        if not os.path.exists(log_file):
-            logger.warning(f"日志文件不存在: {log_file}")
-            return
-        if os.path.getsize(log_file) == 0:
-            logger.info(f"空日志文件: {log_file}")
+
+        # --- 读取对话上下文（从 chat_contexts，用户可在网页端编辑的权威数据源）---
+        with queue_lock:
+            context_history = list(chat_contexts.get(user_id, []))
+
+        # 仅处理未总结的条目
+        unsummarized = [e for e in context_history if not e.get('summarized', False)]
+
+        if not skip_check and len(unsummarized) < 2:
+            logger.info(f"未总结的对话内容不足，未触发记忆总结。用户: {user_id}")
             return
 
-        # --- 读取日志 (增强编码处理) ---
-        logs = []
-        try:
-            with open(log_file, 'r', encoding='utf-8') as f:
-                logs = [line.strip() for line in f if line.strip()]
-        except UnicodeDecodeError as e:
-            logger.warning(f"UTF-8解码失败，尝试其他编码格式: {log_file}, 错误: {e}")
-            # 尝试常见的编码格式
-            for encoding in ['gbk', 'gb2312', 'latin-1', 'cp1252']:
-                try:
-                    with open(log_file, 'r', encoding=encoding) as f:
-                        logs = [line.strip() for line in f if line.strip()]
-                    logger.info(f"成功使用 {encoding} 编码读取文件: {log_file}")
-                    # 重新以UTF-8编码保存文件
-                    with open(log_file, 'w', encoding='utf-8') as f:
-                        for log in logs:
-                            f.write(log + '\n')
-                    logger.info(f"已将文件重新转换为UTF-8编码: {log_file}")
-                    break
-                except (UnicodeDecodeError, Exception):
-                    continue
-            else:
-                # 所有编码都失败，创建备份并重置文件
-                backup_log_file = f"{log_file}.corrupted_{int(time.time())}"
-                try:
-                    shutil.copy(log_file, backup_log_file)
-                    logger.error(f"无法解码日志文件，已备份到: {backup_log_file}")
-                except Exception as backup_err:
-                    logger.error(f"备份损坏文件失败: {backup_err}")
-                
-                # 重置为空文件
-                with open(log_file, 'w', encoding='utf-8') as f:
-                    f.write("")
-                logger.warning(f"已重置损坏的日志文件: {log_file}")
-                return
-        except Exception as e:
-            logger.error(f"读取日志文件时发生未知错误: {log_file}, 错误: {e}")
+        # 格式化为可读对话文本供总结模型使用（仅使用未总结的条目）
+        dialogue_lines = []
+        for entry in unsummarized:
+            role_name = prompt_name if entry['role'] == 'assistant' else user_id
+            content_text = entry.get('content', '').strip()
+            if content_text:
+                dialogue_lines.append(f"[{role_name}] {content_text}")
+
+        if not dialogue_lines:
+            logger.info(f"对话内容为空，跳过记忆总结。用户: {user_id}")
             return
-            
-        # 修改检查条件：仅检查是否达到最小处理阈值（除非跳过检查）
-        if not skip_check and len(logs) < MAX_MESSAGE_LOG_ENTRIES:
-            logger.info(f"日志条目不足（{len(logs)}条），未触发记忆总结。")
-            return
+
+        full_dialogue = '\n'.join(dialogue_lines)
 
         # --- 生成总结 ---
-        # 修改为使用全部日志内容
-        full_logs = '\n'.join(logs)  # 变量名改为更明确的full_logs
-        summary_prompt = f"请以{prompt_name}的视角，用中文总结与{user_id}的对话，提取重要信息总结为一段话作为记忆片段（直接回复一段话）：\n{full_logs}"
+        summary_prompt = f"请以{prompt_name}的视角，用中文总结与{user_id}的对话，提取重要信息总结为一段话作为记忆片段（直接回复一段话）：\n{full_dialogue}"
         
         # 根据配置选择使用辅助模型或主模型进行记忆总结
         if USE_ASSISTANT_FOR_MEMORY_SUMMARY and ENABLE_ASSISTANT_MODEL:
@@ -3082,9 +3071,20 @@ def summarize_and_save(user_id, skip_check=False):
                     shutil.move(backup_file, user_prompt_file)
                 raise
 
-        # --- 清理日志 ---
-        with open(log_file, 'w', encoding='utf-8') as f:
-            f.truncate()
+        # --- 标记已总结的条目，更新 chat_contexts 并持久化 ---
+        with queue_lock:
+            current_entries = chat_contexts.get(user_id, [])
+            # 通过对象身份标记本次被总结的条目（unsummarized 是 context_history 的子集的引用副本）
+            # 用内容匹配标记：将本次总结的 (role, content) 组合标记为已总结
+            summarized_keys = {(e['role'], e['content']) for e in unsummarized}
+            marked = 0
+            for entry in current_entries:
+                if not entry.get('summarized', False) and (entry['role'], entry['content']) in summarized_keys:
+                    entry['summarized'] = True
+                    marked += 1
+            if marked:
+                save_chat_contexts()
+                logger.info(f"已标记用户 {user_id} 的 {marked} 条对话记录为已总结。")
 
     except Exception as e:
         logger.error(f"记忆保存失败: {str(e)}", exc_info=True)
@@ -3103,49 +3103,23 @@ def memory_manager():
         try:
             # 检查所有监听用户
             for user in user_names:
-                prompt_name = prompt_mapping.get(user, user)  # 获取配置的prompt名
-                log_file = os.path.join(root_dir, MEMORY_TEMP_DIR, f'{user}_{prompt_name}_log.txt')
-                
                 try:
                     # 根据配置调用对应的记忆容量管理函数
                     manage_user_memory_capacity(user)
-                except UnicodeDecodeError as ude:
-                    logger.error(f"用户 {user} 的记忆文件编码异常: {str(ude)}")
-                    logger.info(f"跳过用户 {user} 的内存管理，等待下一轮检查")
-                    continue
                 except Exception as e:
                     logger.error(f"用户 {user} 内存管理失败: {str(e)}")
                     continue
 
-                if os.path.exists(log_file):
-                    try:
-                        # 增强编码处理的行数统计
-                        line_count = 0
-                        try:
-                            with open(log_file, 'r', encoding='utf-8') as f:
-                                line_count = sum(1 for _ in f)
-                        except UnicodeDecodeError as ude:
-                            logger.warning(f"UTF-8解码失败，尝试其他编码统计行数: {log_file}, 错误: {ude}")
-                            # 尝试用其他编码统计行数
-                            for encoding in ['gbk', 'gb2312', 'latin-1', 'cp1252']:
-                                try:
-                                    with open(log_file, 'r', encoding=encoding) as f:
-                                        line_count = sum(1 for _ in f)
-                                    logger.info(f"成功使用 {encoding} 编码统计行数: {log_file}")
-                                    break
-                                except (UnicodeDecodeError, Exception):
-                                    continue
-                            else:
-                                # 所有编码都失败，跳过这个用户
-                                logger.error(f"无法统计日志文件行数，跳过用户 {user}: {log_file}")
-                                continue
-                                
-                        if line_count >= MAX_MESSAGE_LOG_ENTRIES:
-                            summarize_and_save(user)
-                    except Exception as file_err:
-                        logger.error(f"处理用户 {user} 的日志文件时出错: {file_err}")
-                        continue
-    
+                # 触发条件：未总结的条目数 >= 有效阈值
+                # 有效阈值 = min(设定值, context_limit)，确保在上下文被裁剪前完成总结
+                effective_threshold = min(MAX_MESSAGE_LOG_ENTRIES, MAX_GROUPS * 2)
+                with queue_lock:
+                    user_entries = chat_contexts.get(user, [])
+                    unsummarized_count = sum(1 for e in user_entries if not e.get('summarized', False))
+                if unsummarized_count >= effective_threshold:
+                    logger.info(f"用户 {user} 有 {unsummarized_count} 条未总结消息（阈值 {effective_threshold}），触发记忆总结")
+                    summarize_and_save(user)
+
         except Exception as e:
             logger.error(f"记忆管理异常: {str(e)}")
         finally:
@@ -3297,7 +3271,7 @@ def manage_user_memory_capacity(user):
         logger.error(f"管理用户 {user} 记忆容量失败: {e}")
 
 def clear_memory_temp_files(user_id):
-    """清除指定用户的Memory_Temp文件"""
+    """清除指定用户的Memory_Temp调试日志文件"""
     try:
         logger.warning(f"已开启自动清除Memory_Temp文件功能，尝试清除用户 {user_id} 的Memory_Temp文件")
         prompt_name = prompt_mapping.get(user_id, user_id)
@@ -3306,7 +3280,7 @@ def clear_memory_temp_files(user_id):
         log_file = os.path.join(root_dir, MEMORY_TEMP_DIR, f'{safe_user_id}_{safe_prompt_name}_log.txt')
         if os.path.exists(log_file):
             os.remove(log_file)
-            logger.warning(f"已清除用户 {user_id} 的Memory_Temp文件: {log_file}")
+            logger.warning(f"已清除用户 {user_id} 的Memory_Temp调试日志: {log_file}")
     except Exception as e:
         logger.error(f"清除Memory_Temp文件失败: {str(e)}")
 
@@ -4535,9 +4509,10 @@ def main():
         core_memory_dir = os.path.join(root_dir, CORE_MEMORY_DIR)
         os.makedirs(core_memory_dir, exist_ok=True)
 
-        # 加载聊天上下文
+        # 加载聊天上下文，并迁移旧版本数据
         logger.info("正在加载聊天上下文...")
-        load_chat_contexts() # 调用加载函数
+        load_chat_contexts()
+        migrate_chat_contexts_summarized_field()  # 兼容性迁移：补充 summarized 字段
 
         if ENABLE_REMINDERS:
              logger.info("提醒功能已启用。")

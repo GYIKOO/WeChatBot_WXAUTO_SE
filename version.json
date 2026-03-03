@@ -1,5 +1,5 @@
 {
-    "version": "3.25.1",
-    "last_update": "2025-10-16",
-    "description": "\r\n【强烈建议更新】\r\n完善密码登录机制\r\n优化服务器安全性能\r\n修复安全漏洞\r\n新增随机端口功能\r\n修复bugs"
+    "version": "3.26.0",
+    "last_update": "2026-03-03",
+    "description": "记忆系统优化"
 }

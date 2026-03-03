@@ -2428,19 +2428,34 @@ def save_user_chat_context(username):
         new_context_data = json.loads(new_context_str)
         if not isinstance(new_context_data, list):
             raise ValueError("上下文数据必须是一个JSON数组 (list)")
-        # --- 强制合并连续user，保证user→assistant结构 ---
+        # --- 强制合并连续user，保证user→assistant结构，保留 summarized 字段 ---
         merged_context = []
         user_buffer = []
+        user_summarized_buffer = []
         for item in new_context_data:
             if item.get('role') == 'user':
                 user_buffer.append(item.get('content', ''))
+                user_summarized_buffer.append(item.get('summarized', False))
             elif item.get('role') == 'assistant':
                 if user_buffer:
-                    merged_context.append({'role': 'user', 'content': '\n'.join(user_buffer)})
+                    merged_context.append({
+                        'role': 'user',
+                        'content': '\n'.join(user_buffer),
+                        'summarized': all(user_summarized_buffer),
+                    })
                     user_buffer = []
-                merged_context.append(item)
+                    user_summarized_buffer = []
+                merged_context.append({
+                    'role': 'assistant',
+                    'content': item.get('content', ''),
+                    'summarized': item.get('summarized', False),
+                })
         if user_buffer:
-            merged_context.append({'role': 'user', 'content': '\n'.join(user_buffer)})
+            merged_context.append({
+                'role': 'user',
+                'content': '\n'.join(user_buffer),
+                'summarized': all(user_summarized_buffer),
+            })
         # --- END ---
     except (json.JSONDecodeError, ValueError) as e:
         return jsonify({'status': 'error', 'message': f'格式错误: {str(e)}'}), 400
