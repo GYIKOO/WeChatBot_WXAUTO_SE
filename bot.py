@@ -1022,14 +1022,33 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
 
 
 def strip_before_thought_tags(text):
-    # 匹配并截取 </thought> 或 </think> 后面的内容
+    """
+    移除 CoT（思维链）标签，返回标签后的实际回复内容。
+    支持多种 CoT 格式：
+    - <thinking>...</thinking> - 包裹在标签内的思考过程
+    - </thought> - 思考结束标记
+    - </think> - 思考结束标记
+    """
     if text is None:
         return None
-    match = re.search(r'(?:</thought>|</think>)([\s\S]*)', text)
-    if match:
-        return match.group(1)
-    else:
-        return text
+    
+    # 1. 匹配 <thinking>...</thinking> 格式：返回标签后的内容，如果没有则返回标签外的内容
+    thinking_match = re.search(r'<thinking>[\s\S]*?</thinking>([\s\S]*)', text, re.DOTALL)
+    if thinking_match:
+        rp_content = thinking_match.group(1).strip()
+        if rp_content:
+            return rp_content
+        # 如果标签后没有内容（思考内容在标签内），尝试返回标签内的内容作为安全 fallback
+        inner_match = re.search(r'<thinking>([\s\S]*?)</thinking>', text, re.DOTALL)
+        if inner_match:
+            return inner_match.group(1).strip()
+    
+    # 2. 匹配 </thought> 或 </think> 结束标签：返回标签后的内容
+    end_match = re.search(r'(?:</thought>|</think>)([\s\S]*)', text)
+    if end_match:
+        return end_match.group(1).strip()
+    
+    return text
 
 def call_chat_api_with_retry(messages_to_send, user_id, max_retries=2, is_summary=False):
     """
