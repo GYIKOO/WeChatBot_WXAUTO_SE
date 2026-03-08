@@ -1,0 +1,4 @@
+# Ignore user-added emoji files but keep folder structure
+emojis/**/*
+!emojis/**/
+!emojis/**/.gitkeep
