@@ -1113,6 +1113,7 @@ def call_chat_api_with_retry(messages_to_send, user_id, max_retries=2, is_summar
                     logger.error(f"完整响应对象: {response}")
                 else:
                     content = message_content.strip()
+                    logger.debug(f"[RAW API RESPONSE - 主模型] (ID: {user_id}): {content[:2000]}")
                     if content and "[image]" not in content and content != "ext":
                         if ENABLE_MEMORY and not is_summary:
                             # 尝试捕获原生 thinking/reasoning 字段（Gemini、DeepSeek R1 等推理模型）
@@ -1241,6 +1242,7 @@ def call_assistant_api_with_retry(messages_to_send, user_id, max_retries=2, is_s
                     logger.error(f"完整响应对象: {response}")
                 else:
                     content = message_content.strip()
+                    logger.debug(f"[RAW API RESPONSE - 辅助模型] (ID: {user_id}): {content[:2000]}")
                     if content and "[image]" not in content:
                         if ENABLE_MEMORY and not is_summary:
                             reasoning = getattr(response.choices[0].message, 'reasoning_content', None)
