@@ -907,24 +907,29 @@ def migrate_chat_contexts_summarized_field():
 def merge_context(context_list):
     """
     合并连续相同 role 的消息，保证 user/assistant 交替。
+    合并时保留 summarized 字段：只要其中有一条已总结，合并后即为已总结。
     """
     if not context_list:
         return []
     merged = []
     last_role = None
     buffer = []
+    summarized_flag = False
     for item in context_list:
         role = item.get('role')
         content = item.get('content', '')
         if role == last_role:
             buffer.append(content)
+            if item.get('summarized', False):
+                summarized_flag = True
         else:
             if buffer:
-                merged.append({'role': last_role, 'content': '\n'.join(buffer)})
+                merged.append({'role': last_role, 'content': '\n'.join(buffer), 'summarized': summarized_flag})
             buffer = [content]
             last_role = role
+            summarized_flag = item.get('summarized', False)
     if buffer:
-        merged.append({'role': last_role, 'content': '\n'.join(buffer)})
+        merged.append({'role': last_role, 'content': '\n'.join(buffer), 'summarized': summarized_flag})
     return merged
 
 # 保存聊天上下文
