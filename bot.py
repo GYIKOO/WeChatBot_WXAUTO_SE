@@ -1113,7 +1113,7 @@ def call_chat_api_with_retry(messages_to_send, user_id, max_retries=2, is_summar
                     logger.error(f"完整响应对象: {response}")
                 else:
                     content = message_content.strip()
-                    logger.debug(f"[RAW API RESPONSE - 主模型] (ID: {user_id}): {content[:2000]}")
+                    logger.info(f"[RAW API RESPONSE - 主模型] (ID: {user_id}): {content[:2000]}")
                     if content and "[image]" not in content and content != "ext":
                         if ENABLE_MEMORY and not is_summary:
                             # 尝试捕获原生 thinking/reasoning 字段（Gemini、DeepSeek R1 等推理模型）
@@ -1242,7 +1242,7 @@ def call_assistant_api_with_retry(messages_to_send, user_id, max_retries=2, is_s
                     logger.error(f"完整响应对象: {response}")
                 else:
                     content = message_content.strip()
-                    logger.debug(f"[RAW API RESPONSE - 辅助模型] (ID: {user_id}): {content[:2000]}")
+                    logger.info(f"[RAW API RESPONSE - 辅助模型] (ID: {user_id}): {content[:2000]}")
                     if content and "[image]" not in content:
                         if ENABLE_MEMORY and not is_summary:
                             reasoning = getattr(response.choices[0].message, 'reasoning_content', None)
@@ -3837,7 +3837,9 @@ def log_ai_reply_to_memory(username, reply_part):
          return
     try:
         prompt_name = prompt_mapping.get(username, username)  # 使用配置的提示名作为 AI 身份
-        log_file = os.path.join(root_dir, MEMORY_TEMP_DIR, f'{username}_{prompt_name}_log.txt')
+        safe_username = sanitize_user_id_for_filename(username)
+        safe_prompt_name = sanitize_user_id_for_filename(prompt_name)
+        log_file = os.path.join(root_dir, MEMORY_TEMP_DIR, f'{safe_username}_{safe_prompt_name}_log.txt')
         log_entry = f"{datetime.now().strftime('%Y-%m-%d %A %H:%M:%S')} | [{prompt_name}] {reply_part}\n"
 
         # 确保日志目录存在

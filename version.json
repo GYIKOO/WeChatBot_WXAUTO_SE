@@ -1,5 +1,5 @@
 {
-    "version": "3.26.3",
+    "version": "3.26.4",
     "last_update": "2026-03-09",
-    "description": "新增DEBUG级别日志输出原始API响应，便于排查CoT是否按提示词生成"
+    "description": "原始API响应日志改为INFO级别；修复Memory_Temp日志文件名不一致导致AI回复与用户消息分离的bug"
 }
