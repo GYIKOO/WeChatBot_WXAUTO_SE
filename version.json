@@ -1,5 +1,5 @@
 {
-    "version": "3.26.9",
-    "last_update": "2026-03-09",
-    "description": "强化CoT格式提醒（强调尖括号必须）；增强thinking/think过滤兼容性，支持无尖括号变体"
+    "version": "3.26.10",
+    "last_update": "2026-03-10",
+    "description": "优化CoT稳定性"
 }

@@ -1000,18 +1000,19 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
                 # 将历史消息添加到 API 请求列表中（去除 summarized 字段）
                 messages_to_send.extend({"role": e["role"], "content": e["content"]} for e in history)
 
-                # 2.5 若prompt中包含CoT标签要求，在用户消息之后注入格式提醒
+                # 3. 将当前用户消息添加到 API 请求列表中
+                messages_to_send.append({"role": "user", "content": message})
+
+                # 3.5 若prompt中包含CoT标签要求，在用户消息之后注入格式提醒
                 if "<thinking>" in user_prompt or "<think>" in user_prompt:
                     messages_to_send.append({"role": "system", "content": (
                         "【格式要求提醒】请严格遵守系统提示词中的格式规范。"
-                        "请优先参照系统提示词里的“## 思维链”模块执行推理结构与自查维度。"
-                        "<thinking> 标签内总字数必须不超过200字。"
-                        "你的回复必须完整包含 <thinking>...</thinking> 标签对（尖括号不可省略，闭合标签不可遗漏）。"
-                        "在 </thinking> 之后再输出角色扮演正文。"
-                        "以下是用户的最新回复："
+                        "请参照系统提示词里的`## 思维链`模块执行推理结构与自查维度。"
+                        "`<thinking>`标签内总字数禁止超过200字。"
+                        "你的回复必须完整包含 <thinking>...</thinking> 标签对（尖括号不可省略）。"
+                        "在`</thinking>`之后再输出角色扮演正文。"
+                        "现在开始输出`<thinking>`。"
                     )})
-                # 3. 将当前用户消息添加到 API 请求列表中
-                messages_to_send.append({"role": "user", "content": message})
 
                 # 4. 在准备 API 调用后更新持久上下文
                 # 将用户消息添加到持久存储中
