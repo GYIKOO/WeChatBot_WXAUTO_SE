@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 
 # ***********************************************************************
 # Modified based on the KouriChat project
@@ -968,15 +968,14 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
                               对于工具调用（如解析或总结），设置为 False。
     """
     try:
-        # 每次调用都重新加载聊天上下文，以应对文件被外部修改的情况
-        load_chat_contexts()
-        
         logger.info(f"调用 Chat API - ID: {user_id}, 是否存储上下文: {store_context}, 消息: {message[:100]}...") # 日志记录消息片段
 
         messages_to_send = []
         context_limit = MAX_GROUPS * 2  # 最大消息总数（不包括系统消息）
 
         if store_context:
+            # 仅在需要上下文时才重新加载，避免覆盖 summarize_and_save 中的 in-memory 状态
+            load_chat_contexts()
             # --- 处理需要上下文的常规聊天消息 ---
             # 1. 获取该用户的系统提示词
             try:
@@ -1004,10 +1003,11 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
                 # 2.5 若prompt中包含CoT标签要求，在用户消息之后注入格式提醒
                 if "<thinking>" in user_prompt or "<think>" in user_prompt:
                     messages_to_send.append({"role": "system", "content": (
-                        "【强制格式要求】严格遵守系统提示词中规定的回复格式。"
+                        "【格式要求提醒】请严格遵守系统提示词中的格式规范。"
+                        "请优先参照系统提示词里的“## 思维链”模块执行推理结构与自查维度。"
+                        "<thinking> 标签内总字数必须不超过200字。"
                         "你的回复必须完整包含 <thinking>...</thinking> 标签对（尖括号不可省略，闭合标签不可遗漏）。"
-                        "标签内的字数、推理步骤、自查维度必须严格按系统提示词中的定义执行，不得跳过、不得自行发明额外步骤。"
-                        "标签闭合后再输出角色扮演正文。"
+                        "在 </thinking> 之后再输出角色扮演正文。"
                         "以下是用户的最新回复："
                     )})
                 # 3. 将当前用户消息添加到 API 请求列表中
@@ -4723,3 +4723,6 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"程序启动或运行期间发生未捕获的顶层异常: {str(e)}", exc_info=True)
         print(f"FALLBACK LOG: {datetime.now()} - CRITICAL ERROR - {str(e)}")
+
+
+
