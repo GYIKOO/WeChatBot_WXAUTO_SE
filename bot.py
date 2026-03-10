@@ -1007,8 +1007,9 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
                 # 3.5 若prompt中包含CoT标签要求，注入格式提醒
                 if "<thinking>" in user_prompt or "<think>" in user_prompt:
                     messages_to_send.append({"role": "system", "content": (
-                        "【格式提醒】系统提示词要求输出思维链，回复前必须先生成 <thinking>...</thinking> 块，"
-                        "再输出正文回复，不可省略。"
+                        "【格式提醒】系统提示词要求输出思维链，回复前必须先生成思维链块，"
+                        "格式必须严格为 <thinking>（思考内容）</thinking>，尖括号不可省略，"
+                        "thinking 标签闭合后再输出正文回复。"
                     )})
 
                 # 4. 在准备 API 调用后更新持久上下文
@@ -1061,22 +1062,28 @@ def strip_before_thought_tags(text):
     if text is None:
         return None
     
-    # 1. 匹配 <thinking>...</thinking> 格式：返回标签后的内容，如果没有则返回标签外的内容
-    thinking_match = re.search(r'<thinking>[\s\S]*?</thinking>([\s\S]*)', text, re.DOTALL)
+    # 1. 匹配完整包裹格式（兼容有无尖括号）：<thinking>...</thinking> 或 thinking.../ thinking
+    thinking_match = re.search(r'<?thinking>?([\s\S]*?)<?/thinking>?([\s\S]*)', text, re.DOTALL | re.IGNORECASE)
     if thinking_match:
-        rp_content = thinking_match.group(1).strip()
+        rp_content = thinking_match.group(2).strip()
         if rp_content:
             return rp_content
-        # 如果标签后没有内容（思考内容在标签内），尝试返回标签内的内容作为安全 fallback
-        inner_match = re.search(r'<thinking>([\s\S]*?)</thinking>', text, re.DOTALL)
-        if inner_match:
-            return inner_match.group(1).strip()
-    
-    # 2. 匹配 </thought> 或 </think> 结束标签：返回标签后的内容
-    end_match = re.search(r'(?:</thought>|</think>)([\s\S]*)', text)
+        # 标签后无内容时，fallback 返回标签内思考内容
+        return thinking_match.group(1).strip()
+
+    # 2. 匹配完整包裹格式（兼容有无尖括号）：<think>...</think> 或 think.../think
+    think_match = re.search(r'<?think>?([\s\S]*?)<?/think>?([\s\S]*)', text, re.DOTALL | re.IGNORECASE)
+    if think_match:
+        rp_content = think_match.group(2).strip()
+        if rp_content:
+            return rp_content
+        return think_match.group(1).strip()
+
+    # 3. 匹配仅有结束标签的情况：</thought>、</think>、/thought、/think
+    end_match = re.search(r'(?:</?thought>|</?think>|/thought|/think)([\s\S]*)', text, re.IGNORECASE)
     if end_match:
         return end_match.group(1).strip()
-    
+
     return text
 
 def call_chat_api_with_retry(messages_to_send, user_id, max_retries=2, is_summary=False):

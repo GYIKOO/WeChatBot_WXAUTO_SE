@@ -1,5 +1,5 @@
 {
-    "version": "3.26.8",
+    "version": "3.26.9",
     "last_update": "2026-03-09",
-    "description": "新增CoT格式提醒注入：检测到prompt含thinking/think标签时，在上下文末尾注入system提醒强制输出思维链"
+    "description": "强化CoT格式提醒（强调尖括号必须）；增强thinking/think过滤兼容性，支持无尖括号变体"
 }
