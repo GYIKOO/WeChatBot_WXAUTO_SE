@@ -1004,6 +1004,13 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
                 # 3. 将当前用户消息添加到 API 请求列表中
                 messages_to_send.append({"role": "user", "content": message})
 
+                # 3.5 若prompt中包含CoT标签要求，注入格式提醒
+                if "<thinking>" in user_prompt or "<think>" in user_prompt:
+                    messages_to_send.append({"role": "system", "content": (
+                        "【格式提醒】系统提示词要求输出思维链，回复前必须先生成 <thinking>...</thinking> 块，"
+                        "再输出正文回复，不可省略。"
+                    )})
+
                 # 4. 在准备 API 调用后更新持久上下文
                 # 将用户消息添加到持久存储中
                 chat_contexts[user_id].append({"role": "user", "content": message, "summarized": False})
