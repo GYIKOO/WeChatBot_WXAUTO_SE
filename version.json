@@ -1,5 +1,5 @@
 {
-    "version": "3.26.5",
+    "version": "3.26.6",
     "last_update": "2026-03-09",
-    "description": "修复merge_context丢失summarized字段导致重启后重复总结的bug；修复Memory_Temp日志文件名不一致；原始API响应日志改为INFO级别"
+    "description": "优化长期记忆总结prompt，要求记录具体事件和细节，禁止泛化评价性描述"
 }

@@ -3002,7 +3002,15 @@ def summarize_and_save(user_id, skip_check=False):
         full_dialogue = '\n'.join(dialogue_lines)
 
         # --- 生成总结 ---
-        summary_prompt = f"请以{prompt_name}的视角，用中文总结与{user_id}的对话，提取重要信息总结为一段话作为记忆片段（直接回复一段话）：\n{full_dialogue}"
+        summary_prompt = (
+            f"请以{prompt_name}的视角，用中文将以下与{user_id}的对话整理成记忆片段。\n"
+            f"要求：\n"
+            f"1. 记录具体发生了什么事、说了什么话，保留细节（如具体的行为、物品、原因、对方说的话）\n"
+            f"2. 按事件顺序描述，不要概括或评价性格、情感、关系\n"
+            f"3. 禁止使用"整体来看"、"总体而言"、"表现出"、"流露出"等评价性句式\n"
+            f"4. 直接输出记忆片段正文，不加标题\n\n"
+            f"{full_dialogue}"
+        )
         
         # 根据配置选择使用辅助模型或主模型进行记忆总结
         if USE_ASSISTANT_FOR_MEMORY_SUMMARY and ENABLE_ASSISTANT_MODEL:
