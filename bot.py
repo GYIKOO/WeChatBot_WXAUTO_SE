@@ -1004,15 +1004,18 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
                 messages_to_send.append({"role": "user", "content": message})
 
                 # 3.5 若prompt中包含CoT标签要求，在用户消息之后注入格式提醒
-                if "<thinking>" in user_prompt or "<think>" in user_prompt:
+                cot_prefill = "<thinking>" in user_prompt or "<think>" in user_prompt
+                if cot_prefill:
                     messages_to_send.append({"role": "system", "content": (
                         "【格式要求提醒】请严格遵守系统提示词中的格式规范。"
                         "请参照系统提示词里的`## 思维链`模块执行推理结构与自查维度。"
                         "`<thinking>`标签内总字数禁止超过200字。"
-                        "你的回复必须完整包含 <thinking>...</thinking> 标签对（尖括号不可省略）。"
+                        "你的回复必须严格使用完整的XML标签对 <thinking>...</thinking>，"
+                        "注意：必须是带尖括号的 <thinking> 和 </thinking>，不可省略任何尖括号或斜杠。"
                         "在`</thinking>`之后再输出角色扮演正文。"
-                        "现在开始输出`<thinking>`。"
                     )})
+                    # Assistant prefill：强制模型从 <thinking> 标签内部续写，防止输出裸 thinking
+                    messages_to_send.append({"role": "assistant", "content": "<thinking>\n"})
 
                 # 4. 在准备 API 调用后更新持久上下文
                 # 将用户消息添加到持久存储中
@@ -1026,11 +1029,12 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
 
         else:
             # --- 处理工具调用（如提醒解析、总结） ---
+            cot_prefill = False
             messages_to_send.append({"role": "user", "content": message})
             logger.info(f"工具调用 (store_context=False)，ID: {user_id}。仅发送提供的消息。")
 
         # --- 调用 API ---
-        reply = call_chat_api_with_retry(messages_to_send, user_id, is_summary=is_summary)
+        reply = call_chat_api_with_retry(messages_to_send, user_id, is_summary=is_summary, cot_prefill=cot_prefill)
 
         # --- 如果需要，存储助手回复到上下文中 ---
         if store_context:
@@ -1063,7 +1067,11 @@ def strip_before_thought_tags(text):
     """
     if text is None:
         return None
-    
+
+    # 0. 去重：assistant prefill 可能导致模型重复输出开标签
+    text = re.sub(r'<thinking>\s*<thinking>', '<thinking>', text, flags=re.IGNORECASE)
+    text = re.sub(r'<think>\s*<think>', '<think>', text, flags=re.IGNORECASE)
+
     # 1. 匹配完整包裹格式（兼容有无尖括号）：<thinking>...</thinking> 或 thinking.../ thinking
     thinking_match = re.search(r'<?thinking>?([\s\S]*?)<?/thinking>?([\s\S]*)', text, re.DOTALL | re.IGNORECASE)
     if thinking_match:
@@ -1088,7 +1096,7 @@ def strip_before_thought_tags(text):
 
     return text
 
-def call_chat_api_with_retry(messages_to_send, user_id, max_retries=2, is_summary=False):
+def call_chat_api_with_retry(messages_to_send, user_id, max_retries=2, is_summary=False, cot_prefill=False):
     """
     调用 Chat API 并在第一次失败或返回空结果时重试。
 
@@ -1134,6 +1142,9 @@ def call_chat_api_with_retry(messages_to_send, user_id, max_retries=2, is_summar
                     logger.error(f"完整响应对象: {response}")
                 else:
                     content = message_content.strip()
+                    # 若使用了 assistant prefill，需拼回前缀（API 响应不含 prefill 内容）
+                    if cot_prefill:
+                        content = "<thinking>\n" + content
                     logger.info(f"[RAW API RESPONSE - 主模型] (ID: {user_id}): {content[:2000]}")
                     if content and "[image]" not in content and content != "ext":
                         if ENABLE_MEMORY and not is_summary:
@@ -1164,6 +1175,13 @@ def call_chat_api_with_retry(messages_to_send, user_id, max_retries=2, is_summar
             logger.error(json.dumps(messages_to_send, ensure_ascii=False, indent=2))
             error_info = str(e)
             logger.error(f"自动重试：第 {attempt + 1} 次调用 {MODEL}失败 (ID: {user_id}) 原因: {error_info}", exc_info=False)
+
+            # Provider 可能不支持 trailing assistant message（prefill），移除后重试
+            if cot_prefill and ('400' in error_info or 'invalid' in error_info.lower()):
+                if messages_to_send and messages_to_send[-1].get('role') == 'assistant':
+                    messages_to_send.pop()
+                    cot_prefill = False
+                    logger.warning("Provider 可能不支持 assistant prefill，已移除，将在下次重试时不使用 prefill")
 
             # 细化错误分类
             if "real name verification" in error_info:
