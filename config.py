@@ -55,7 +55,8 @@ ENABLE_EMOJI_SENDING = True
 EMOJI_SENDING_PROBABILITY = 25
 
 # 自动消息配置
-AUTO_MESSAGE = '请你模拟系统设置的角色，在微信上找对方继续刚刚的话题或者询问对方在做什么'
+AUTO_MESSAGE = '根据角色人设中的日常生活与行程，结合当前时间，推断角色此刻在做什么、为什么会在这个时间点主动发消息给用户。触发点可以是今天发生的某件小事、当前状态引发的随机联想、无事生非找茬、或单纯心血来潮——不要默认续接上一轮话题，除非当前情境与上轮内容有真实的自然关联。按正常对话格式输出。'
+
 ENABLE_AUTO_MESSAGE = True
 # 等待时间
 MIN_COUNTDOWN_HOURS = 1.0
