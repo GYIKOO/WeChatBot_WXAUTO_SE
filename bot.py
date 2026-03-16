@@ -1009,7 +1009,9 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
                     messages_to_send.append({"role": "system", "content": (
                         "【格式要求提醒】请严格遵守系统提示词中的格式规范。"
                         "请参照系统提示词里的`## 思维链`模块执行推理结构与自查维度。"
-                        "`<thinking>`标签内总字数禁止超过200字。"
+                        "`<thinking>`标签内总字数禁止超过500字。"
+                        "自查时显式确认：①回复长度是否由当前输入内容量决定（勿模仿上下文长度）；"
+                        "②近期反复出现的词汇/外号/话题，此刻是否还有新鲜感。"
                         "你的回复必须严格使用完整的XML标签对 <thinking>...</thinking>，"
                         "注意：必须是带尖括号的 <thinking> 和 </thinking>，不可省略任何尖括号或斜杠。"
                         "在`</thinking>`之后再输出角色扮演正文。"
