@@ -2,3 +2,7 @@
 emojis/**/*
 !emojis/**/
 !emojis/**/.gitkeep
+
+# Ignore all personal prompt files, only keep the template
+prompts/*.md
+!prompts/角色1.md

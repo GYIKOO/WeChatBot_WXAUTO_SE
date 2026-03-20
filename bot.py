@@ -1074,8 +1074,9 @@ def strip_before_thought_tags(text):
     text = re.sub(r'<thinking>\s*<thinking>', '<thinking>', text, flags=re.IGNORECASE)
     text = re.sub(r'<think>\s*<think>', '<think>', text, flags=re.IGNORECASE)
 
-    # 1. 匹配完整包裹格式（兼容有无尖括号）：<thinking>...</thinking> 或 thinking.../ thinking
-    thinking_match = re.search(r'<?thinking>?([\s\S]*?)<?/thinking>?([\s\S]*)', text, re.DOTALL | re.IGNORECASE)
+    # 1. 匹配最外层 <thinking>...</thinking>：贪婪匹配确保找到最后一个闭合标签
+    #    这样即使 CoT 内部出现嵌套的 <thinking>...</thinking> 也能完整过滤
+    thinking_match = re.search(r'<?thinking>?([\s\S]*)<?/thinking>?([\s\S]*)', text, re.DOTALL | re.IGNORECASE)
     if thinking_match:
         rp_content = thinking_match.group(2).strip()
         if rp_content:
@@ -1083,8 +1084,8 @@ def strip_before_thought_tags(text):
         # 标签后无内容时，fallback 返回标签内思考内容
         return thinking_match.group(1).strip()
 
-    # 2. 匹配完整包裹格式（兼容有无尖括号）：<think>...</think> 或 think.../think
-    think_match = re.search(r'<?think>?([\s\S]*?)<?/think>?([\s\S]*)', text, re.DOTALL | re.IGNORECASE)
+    # 2. 匹配最外层 <think>...</think>：同样使用贪婪匹配
+    think_match = re.search(r'<?think>?([\s\S]*)<?/think>?([\s\S]*)', text, re.DOTALL | re.IGNORECASE)
     if think_match:
         rp_content = think_match.group(2).strip()
         if rp_content:
