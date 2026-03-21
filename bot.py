@@ -3014,6 +3014,7 @@ def summarize_and_save(user_id, skip_check=False):
         # --- 读取对话上下文（从 chat_contexts，用户可在网页端编辑的权威数据源）---
         with queue_lock:
             context_history = list(chat_contexts.get(user_id, []))
+            total_at_capture = len(context_history)  # 记录捕获时的条目总数，用于标记
 
         # 仅处理未总结的条目
         unsummarized = [e for e in context_history if not e.get('summarized', False)]
@@ -3137,16 +3138,24 @@ def summarize_and_save(user_id, skip_check=False):
             # 在锁内重新加载磁盘最新状态，防止其他线程的 load_chat_contexts 覆盖标记
             load_chat_contexts()
             current_entries = chat_contexts.get(user_id, [])
-            # 用内容匹配标记：将本次总结的 (role, content) 组合标记为已总结
-            summarized_keys = {(e['role'], e['content']) for e in unsummarized}
+            current_total = len(current_entries)
+
+            # 计算 API 调用期间新增的条目数（它们在列表末尾，不应被标记）
+            new_entries_since_capture = max(0, current_total - total_at_capture)
+            # 需要标记的范围：当前列表中除去末尾新增条目的部分
+            mark_boundary = current_total - new_entries_since_capture
+
             marked = 0
-            for entry in current_entries:
-                if not entry.get('summarized', False) and (entry['role'], entry['content']) in summarized_keys:
+            for i in range(mark_boundary):
+                entry = current_entries[i]
+                if not entry.get('summarized', False):
                     entry['summarized'] = True
                     marked += 1
             if marked:
                 save_chat_contexts()
-                logger.info(f"已标记用户 {user_id} 的 {marked} 条对话记录为已总结。")
+                logger.info(f"已标记用户 {user_id} 的 {marked} 条对话记录为已总结（范围: 前{mark_boundary}条，新增{new_entries_since_capture}条跳过）。")
+            else:
+                logger.info(f"用户 {user_id} 无需标记（前{mark_boundary}条均已标记，新增{new_entries_since_capture}条跳过）。")
 
     except Exception as e:
         logger.error(f"记忆保存失败: {str(e)}", exc_info=True)

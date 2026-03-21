@@ -1,5 +1,5 @@
 {
-    "version": "3.26.11",
+    "version": "3.26.12",
     "last_update": "2026-03-20",
-    "description": "修复CoT过滤与记忆总结"
+    "description": "修复记忆总结标记机制"
 }
