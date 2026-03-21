@@ -974,8 +974,6 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
         context_limit = MAX_GROUPS * 2  # 最大消息总数（不包括系统消息）
 
         if store_context:
-            # 仅在需要上下文时才重新加载，避免覆盖 summarize_and_save 中的 in-memory 状态
-            load_chat_contexts()
             # --- 处理需要上下文的常规聊天消息 ---
             # 1. 获取该用户的系统提示词
             try:
@@ -987,6 +985,8 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
 
             # 2. 管理并检索聊天历史记录
             with queue_lock: # 确保对 chat_contexts 的访问是线程安全的
+                # 在锁内重新加载，防止覆盖 summarize_and_save 的标记结果
+                load_chat_contexts()
                 if user_id not in chat_contexts:
                     chat_contexts[user_id] = []
 
@@ -3136,8 +3136,9 @@ def summarize_and_save(user_id, skip_check=False):
 
         # --- 标记已总结的条目，更新 chat_contexts 并持久化 ---
         with queue_lock:
+            # 在锁内重新加载磁盘最新状态，防止其他线程的 load_chat_contexts 覆盖标记
+            load_chat_contexts()
             current_entries = chat_contexts.get(user_id, [])
-            # 通过对象身份标记本次被总结的条目（unsummarized 是 context_history 的子集的引用副本）
             # 用内容匹配标记：将本次总结的 (role, content) 组合标记为已总结
             summarized_keys = {(e['role'], e['content']) for e in unsummarized}
             marked = 0
