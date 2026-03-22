@@ -1009,7 +1009,8 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
                     messages_to_send.append({"role": "system", "content": (
                         "【格式要求提醒】请严格遵守系统提示词中`## 思维链`模块的格式规范。"
                         "`<thinking>`标签内总字数禁止超过300字，用正常完整的句子写，不要列编号清单。"
-                        "思维链只做两件事：理解当前场景 + 自查防偏。禁止在思维链里规划回复内容或起草台词。"
+                        "思维链做三件事：①判断情境与状态，②合理性推演（先想情境下的自然反应，再用人设着色），③自查防偏。"
+                        "禁止在思维链里规划回复内容或起草台词。"
                         "你的回复必须严格使用完整的XML标签对 <thinking>...</thinking>，"
                         "注意：必须是带尖括号的 <thinking> 和 </thinking>，不可省略任何尖括号或斜杠。"
                         "在`</thinking>`之后再输出角色扮演正文。"
