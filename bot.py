@@ -1008,9 +1008,8 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
                 if cot_prefill:
                     messages_to_send.append({"role": "system", "content": (
                         "【格式要求提醒】请严格遵守系统提示词中`## 思维链`模块的格式规范。"
-                        "`<thinking>`标签内总字数禁止超过300字，用正常完整的句子写，不要列编号清单。"
-                        "思维链做三件事：①判断情境与状态，②合理性推演（先想情境下的自然反应，再用人设着色），③自查防偏。"
-                        "禁止在思维链里规划回复内容或起草台词。"
+                        "`<thinking>`标签内总字数禁止超过400字，用正常完整的句子写，不要列编号清单。"
+                        "思维链做三件事：①判断情境与状态，②合理性推演，③生成前检查。"
                         "你的回复必须严格使用完整的XML标签对 <thinking>...</thinking>，"
                         "注意：必须是带尖括号的 <thinking> 和 </thinking>，不可省略任何尖括号或斜杠。"
                         "在`</thinking>`之后再输出角色扮演正文。"
@@ -3191,6 +3190,22 @@ def memory_manager():
                 if unsummarized_count >= effective_threshold:
                     logger.info(f"用户 {user} 有 {unsummarized_count} 条未总结消息（阈值 {effective_threshold}），触发记忆总结")
                     summarize_and_save(user)
+
+                # --- 定期截断 Memory_Temp 日志文件，只保留最近 200 行 ---
+                try:
+                    prompt_name = prompt_mapping.get(user, user)
+                    safe_user = sanitize_user_id_for_filename(user)
+                    safe_prompt = sanitize_user_id_for_filename(prompt_name)
+                    log_file = os.path.join(root_dir, MEMORY_TEMP_DIR, f'{safe_user}_{safe_prompt}_log.txt')
+                    if os.path.exists(log_file) and os.path.getsize(log_file) > 512 * 1024:  # >512KB 时截断
+                        with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+                            lines = f.readlines()
+                        if len(lines) > 200:
+                            with open(log_file, 'w', encoding='utf-8') as f:
+                                f.writelines(lines[-200:])
+                            logger.info(f"已截断用户 {user} 的Memory_Temp日志，从 {len(lines)} 行保留最近 200 行")
+                except Exception as e:
+                    logger.error(f"截断用户 {user} 的Memory_Temp日志失败: {e}")
 
         except Exception as e:
             logger.error(f"记忆管理异常: {str(e)}")

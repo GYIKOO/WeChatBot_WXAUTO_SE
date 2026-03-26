@@ -1,5 +1,5 @@
 {
-    "version": "3.26.13",
-    "last_update": "2026-03-22",
-    "description": "CoT提醒注入更新"
+    "version": "3.26.14",
+    "last_update": "2026-03-26",
+    "description": "Memory_Temp日志定期截断"
 }
